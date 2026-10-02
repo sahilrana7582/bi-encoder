@@ -1,11 +1,16 @@
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from langchain_openai import OpenAIEmbeddings
+
+from src.llm import Settings
 
 
-MODEL_NAME = "all-MiniLM-L6-v2"
-
-
-def load_model():
-    return SentenceTransformer(MODEL_NAME)
+def load_model(settings: Settings) -> OpenAIEmbeddings:
+    return OpenAIEmbeddings(
+        model=settings.embedding_model,
+        api_key=settings.llm_api_key,
+        max_retries=settings.llm_max_retries,
+        timeout=settings.llm_timeout_seconds,
+    )
 
 
 def load_documents(path):
@@ -20,10 +25,18 @@ def load_documents(path):
 
     return documents
 
+
+def embed_query(model, query):
+    return np.array(
+        model.embed_query(query),
+        dtype=np.float32,
+    )
+
+
 def create_embeddings(model, documents):
-    embeddings = model.encode(
-        documents,
-        convert_to_numpy=True
+    embeddings = np.array(
+        model.embed_documents(documents),
+        dtype=np.float32,
     )
 
     return embeddings

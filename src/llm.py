@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     llm_api_key: SecretStr
     llm_model: str = "gpt-6-luna"
+    embedding_model: str = "text-embedding-3-small"
     llm_timeout_seconds: float = Field(default=30, gt=0)
     llm_max_retries: int = Field(default=2, ge=0)
 

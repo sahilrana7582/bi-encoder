@@ -1,12 +1,10 @@
+from src.embedding import embed_query
 from src.similarity import cosine_similarity
 
 
 def retrieve(query, model, documents, embeddings, top_k=5):
 
-    query_embedding = model.encode(
-        query,
-        convert_to_numpy=True
-    )
+    query_embedding = embed_query(model, query)
 
     results = []
 
