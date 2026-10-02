@@ -3,7 +3,9 @@ from src.embedding import (
     load_documents,
     create_embeddings,
 )
-
+from src.llm import (
+    create_llm_model, get_settings
+)
 from src.retrieval import retrieve
 from src.visualizer import visualize_embeddings
 
@@ -13,6 +15,8 @@ QUERY = "How does a Kafka consumer keep track of its position?"
 
 
 def main():
+    settings = get_settings()
+    llm_model = create_llm_model(settings=settings)
     model = load_model()
 
     documents = load_documents(DOCUMENT_PATH)

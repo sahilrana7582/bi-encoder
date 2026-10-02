@@ -2,3 +2,6 @@ sentence-transformers
 numpy
 matplotlib
 scikit-learn
+pydantic
+pydantic_settings
+langchain_openai

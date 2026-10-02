@@ -1,30 +1,167 @@
-Kafka is a distributed event streaming platform used to publish,
-store, and process streams of records.
+Kafka is a distributed event streaming platform designed to publish, store, process, and consume streams of records. Kafka is commonly used for event-driven architectures, asynchronous communication, data pipelines, log aggregation, real-time analytics, and integration between distributed services. Kafka stores records durably and allows consumers to process those records independently of producers.
 
-A Kafka producer is a client application that publishes records
-to Kafka topics. Producers decide which topic and partition should
-receive a record.
+A Kafka producer is a client application that publishes records to Kafka topics. A producer sends records containing a key and value, and Kafka determines which partition receives the record. Producers can use partitioning strategies based on the record key, a custom partitioner, or round-robin behavior. A producer can batch multiple records and send them together to improve throughput. Producer configuration such as acks, retries, batching, compression, and idempotence affects durability, latency, and delivery semantics.
 
-A Kafka consumer is a client application that reads records from
-Kafka topics. Consumers fetch records from partitions and process them.
+A Kafka consumer is a client application that reads records from Kafka topics. Consumers fetch records from partitions and process them independently of producers. A consumer does not normally receive records pushed directly by the broker; instead, the consumer periodically sends fetch requests to brokers and retrieves available records. Consumers maintain their position using offsets and can commit offsets to indicate how far they have successfully processed a partition.
 
-A Kafka consumer group is a group of consumers that cooperate to
-consume records from a topic. Each partition is assigned to at most
-one consumer within a consumer group.
+A Kafka consumer group is a group of consumers that cooperate to consume records from one or more partitions of a topic. Within a consumer group, each partition is assigned to at most one consumer at a time. If a topic has six partitions and a consumer group contains three consumers, partitions can be distributed across those consumers. Adding consumers beyond the number of partitions does not increase parallelism because each partition can only be actively assigned to one consumer in that group.
 
-A Kafka partition is an ordered sequence of records. Each record
-within a partition receives an offset that identifies its position.
+Kafka partitions provide the primary unit of parallelism in Kafka. A topic can contain multiple partitions, and records within a partition are stored in an ordered sequence. Kafka guarantees ordering within a single partition but does not provide a global ordering guarantee across all partitions of a topic. Partitioning allows different consumers in a consumer group to process different partitions concurrently.
 
-A Kafka offset represents the position of a record within a partition.
-Consumers use offsets to keep track of their progress while reading
-records.
+A Kafka offset identifies the position of a record within a partition. Offsets are monotonically increasing identifiers assigned to records in a partition. Consumers use offsets to track their progress while reading records. The current position of a consumer and its committed offset are related but conceptually different. A consumer can read records and advance its local position without immediately committing that position.
 
-Kafka topics are logical categories used to organize records.
-Topics can be divided into multiple partitions for scalability.
+Kafka offset commits determine where a consumer resumes processing after a restart or rebalance. Automatic offset commits periodically commit consumer progress, while manual commits allow an application to commit only after successful processing. Committing an offset before processing completes can result in messages being skipped after a crash, while committing after processing can result in duplicate processing. This tradeoff is fundamental to designing at-least-once processing systems.
 
-Kafka replication allows partitions to have multiple replicas.
-Replication provides fault tolerance when brokers fail.
+Kafka consumer rebalancing occurs when the membership or partition assignment of a consumer group changes. A rebalance can happen when a consumer joins the group, leaves the group, crashes, or when the subscribed topic partition count changes. During rebalancing, partitions may be reassigned between consumers. Frequent rebalances can reduce throughput and increase processing latency.
 
-Kafka retention controls how long Kafka keeps records. Records can
-be retained based on time or size regardless of whether consumers
-have already read them.
+Kafka replication allows partition data to be copied across multiple brokers. A replicated partition has one leader replica and one or more follower replicas. Producers and consumers normally communicate with the leader for a partition. Followers replicate records from the leader. Replication provides fault tolerance because another replica can become the leader if the current leader fails.
+
+Kafka ISR, or in-sync replicas, represents replicas that are sufficiently caught up with the partition leader. The leader and in-sync followers form the set of replicas considered eligible for certain leadership and durability decisions. The replication factor determines how many replicas exist for a partition, while ISR represents the subset that is currently synchronized enough with the leader.
+
+Kafka retention determines how long records remain available in a topic. Retention can be configured using time-based limits or size-based limits. Kafka does not normally delete a record simply because a consumer has successfully processed it. This separation between consumption and retention allows multiple consumer groups to independently read the same historical data.
+
+Kafka log compaction is a storage policy that retains the latest record for each key rather than retaining every historical record indefinitely. Compaction is useful for topics representing the latest state of entities such as user profiles, account configurations, or service metadata. Compaction does not necessarily happen immediately, and older records can remain temporarily until background compaction occurs.
+
+Kafka delivery semantics describe how records are delivered and processed. At-most-once processing can lose messages but avoids duplicate processing. At-least-once processing avoids message loss at the cost of possible duplicates. Exactly-once semantics require coordination between Kafka producers, consumers, and transactional processing so that records are not duplicated or partially committed across the relevant boundaries.
+
+Kafka producer idempotence prevents retries from creating duplicate records under supported failure scenarios. Network failures can cause a producer to retry a request when the broker may have already written the record. Without idempotence, the retry can produce duplicates. Idempotent producers use producer identifiers and sequence numbers to allow Kafka brokers to detect duplicate producer requests.
+
+Kafka transactions allow multiple Kafka operations to be committed atomically. A transactional producer can write records to multiple partitions while ensuring that the writes become visible together according to transactional semantics. Transactions are particularly useful for consume-transform-produce pipelines where a service reads records from Kafka, processes them, and publishes resulting records back to Kafka.
+
+AWS is a cloud computing platform that provides infrastructure and managed services for compute, networking, storage, databases, security, messaging, monitoring, and application deployment. AWS resources are organized into regions and availability zones. A region is a geographic area containing multiple isolated availability zones. Designing highly available systems commonly involves distributing workloads across multiple availability zones.
+
+An AWS VPC, or Virtual Private Cloud, is an isolated virtual network in AWS. A VPC contains subnets, route tables, gateways, and network interfaces. A VPC can be configured with public and private subnets. Public subnets commonly contain resources that require direct internet connectivity through an internet gateway, while private subnets are commonly used for application servers and databases that should not accept direct inbound internet traffic.
+
+An AWS subnet is a range of IP addresses inside a VPC. Each subnet belongs to a single availability zone. Public and private subnet behavior is primarily determined by routing configuration rather than simply by the subnet name. A subnet with a route to an internet gateway can be considered public when resources also have suitable public addressing and security configuration.
+
+An AWS route table controls how network traffic is routed from subnets and other network interfaces. A route table contains destination CIDR blocks and targets such as an internet gateway, NAT gateway, transit gateway, or network interface. A subnet is associated with a route table, and traffic is forwarded according to the most specific matching route.
+
+An AWS Internet Gateway provides a path between a VPC and the public internet. A public subnet commonly has a route such as 0.0.0.0/0 pointing to an Internet Gateway. Internet connectivity also requires appropriate public IP addressing and security controls. An Internet Gateway does not itself make every resource in a VPC publicly reachable.
+
+An AWS NAT Gateway allows resources in private subnets to initiate outbound connections to the internet without allowing unsolicited inbound internet connections to those resources. A common architecture places application servers in private subnets and routes their internet-bound traffic through a NAT Gateway located in a public subnet. NAT Gateway behavior is different from an Internet Gateway because it is designed primarily for outbound connectivity from private resources.
+
+AWS Security Groups act as stateful virtual firewalls associated with resources such as EC2 instances and network interfaces. Security groups contain inbound and outbound rules. Because security groups are stateful, response traffic for an allowed connection is automatically permitted without requiring a separate reverse-direction rule. Security groups control traffic at the resource or network-interface level.
+
+AWS Network ACLs are stateless network-level access control lists associated with subnets. Unlike security groups, network ACLs require explicit rules for both inbound and outbound traffic. Network ACLs can be used as an additional layer of subnet-level network filtering. Security groups and network ACLs serve different roles and should not be treated as interchangeable mechanisms.
+
+AWS IAM controls authentication and authorization for AWS resources. IAM policies define what actions can be performed on which resources under specified conditions. Identity-based policies are attached to identities such as users, groups, and roles. Resource-based policies are attached to resources such as S3 buckets. AWS evaluates applicable policies to determine whether a request is allowed or denied.
+
+An AWS IAM role is an identity that can be assumed by trusted principals. A role contains permission policies describing what the role can do and a trust policy describing who or what is allowed to assume the role. The trust policy and permission policy solve different problems. The trust policy controls who can obtain the role's credentials, while the permission policy controls what the role's credentials can access after assumption.
+
+AWS STS provides temporary security credentials for AWS API access. Temporary credentials commonly contain an access key ID, secret access key, and session token. When a principal assumes an IAM role, AWS STS returns temporary credentials that can be used to make authenticated API requests. Temporary credentials are commonly preferred over long-lived access keys for workloads because they have limited lifetimes.
+
+AWS Signature Version 4, commonly called SigV4, is the request-signing mechanism used by many AWS APIs. A client creates a canonical representation of the request, derives signing keys from credentials and request metadata, and generates an authorization signature. AWS verifies the signature to authenticate the request and protect important request properties from tampering.
+
+Amazon S3 is an object storage service designed to store objects inside buckets. An S3 object consists of data and metadata and is identified by a key within a bucket. S3 is commonly used for documents, images, backups, logs, datasets, and static assets. S3 provides high durability and integrates with many AWS services.
+
+An S3 bucket policy is a resource-based IAM policy attached to a bucket. A bucket can have one bucket policy document, and that policy can contain multiple statements. Bucket policies can control access for different principals, actions, resources, and conditions. An IAM identity policy and an S3 bucket policy can both participate in the authorization decision for the same request.
+
+Amazon EC2 provides virtual machines called instances. An EC2 instance runs an operating system and applications and is associated with networking components such as a network interface and security groups. Instance types determine CPU, memory, network, and other resource characteristics. EC2 instances can use IAM roles to obtain temporary AWS credentials without storing long-lived access keys on the machine.
+
+Amazon EKS is a managed Kubernetes service provided by AWS. EKS manages the Kubernetes control plane while worker compute can be provided by EC2 nodes or AWS Fargate. An EKS cluster integrates Kubernetes orchestration with AWS networking, IAM, load balancing, storage, and monitoring capabilities. Production EKS architectures commonly use multiple availability zones.
+
+Amazon ECS is an AWS container orchestration service. ECS can run containers using EC2 instances or AWS Fargate. ECS organizes workloads using clusters, task definitions, services, and tasks. ECS and EKS both orchestrate containers, but ECS uses AWS-specific orchestration primitives while EKS provides Kubernetes APIs and Kubernetes ecosystem compatibility.
+
+Kubernetes is a container orchestration platform designed to deploy, manage, scale, and recover containerized applications. Kubernetes represents desired application state using resources such as Pods, Deployments, Services, ConfigMaps, Secrets, Jobs, and StatefulSets. Controllers continuously compare actual cluster state with desired state and perform actions to move the cluster toward the desired state.
+
+A Kubernetes Pod is the smallest deployable unit in Kubernetes. A Pod can contain one or more containers that share networking and storage resources. Containers in the same Pod share the Pod network namespace and can communicate using localhost. Pods are generally considered ephemeral and are commonly managed indirectly through controllers such as Deployments or StatefulSets.
+
+A Kubernetes Deployment manages a replicated set of Pods and provides declarative updates for stateless applications. A Deployment creates and manages ReplicaSets, which in turn maintain the desired number of Pods. Deployments support rolling updates and rollback mechanisms. The Deployment controller continuously works to reconcile the actual state with the desired replica count and Pod template.
+
+A Kubernetes Service provides a stable network abstraction for accessing a set of Pods. Pods can be replaced and receive different IP addresses, so clients should generally not depend directly on individual Pod IPs. A Service selects Pods using labels and provides a stable virtual IP and DNS name within the cluster. Service types include ClusterIP, NodePort, and LoadBalancer.
+
+Kubernetes Ingress provides HTTP and HTTPS routing from outside the cluster to services inside the cluster. An Ingress resource describes routing rules, but an Ingress controller is responsible for implementing those rules. Depending on the environment, an Ingress controller may integrate with cloud load balancers or reverse proxies.
+
+Kubernetes ConfigMaps store non-sensitive configuration data that can be consumed by Pods as environment variables or mounted files. Kubernetes Secrets are intended for sensitive configuration such as credentials, tokens, and certificates. Kubernetes Secrets provide Kubernetes-level handling of secret data, but additional encryption and access controls may be required for strong production security.
+
+Kubernetes readiness probes determine whether a container is ready to receive traffic. A failed readiness probe removes the Pod from Service endpoints without necessarily restarting the container. Liveness probes determine whether a container is considered unhealthy and should be restarted. Startup probes can be used for applications that require significant initialization time before liveness checks should begin.
+
+Kubernetes Horizontal Pod Autoscaler adjusts the number of Pod replicas based on observed metrics and configured scaling targets. CPU utilization, memory utilization, or custom metrics can be used depending on the metrics configuration. HPA changes the desired replica count, while the scheduler and controllers determine how the resulting Pods are placed and created.
+
+Kubernetes scheduling determines which node should run a Pod. The scheduler considers resource requests, resource availability, node selectors, affinity rules, taints, tolerations, topology constraints, and other scheduling information. A Pod with CPU and memory requests requires nodes with sufficient allocatable resources to satisfy those requests.
+
+Kubernetes persistent storage separates application workloads from the lifecycle of individual Pods. PersistentVolumes represent storage resources, while PersistentVolumeClaims represent requests for storage by workloads. StorageClasses provide dynamic provisioning mechanisms. Stateful workloads such as databases often require stable storage and stable network identities.
+
+Java concurrency allows multiple threads to execute tasks concurrently within a JVM process. Java provides concurrency primitives such as synchronized blocks, locks, volatile variables, atomic classes, concurrent collections, executors, futures, and structured concurrency mechanisms. Correct concurrent programming requires reasoning about visibility, atomicity, ordering, and mutual exclusion.
+
+A Java thread has its own program counter, stack, and stack frames while sharing process-level heap memory with other threads. Local variables stored inside stack frames are thread-local, while objects allocated on the heap can be accessed by multiple threads if references to those objects are shared. This distinction is fundamental when reasoning about Java concurrency.
+
+The Java heap is shared among threads and contains objects and arrays created by the application. Modern JVMs commonly divide heap memory into regions or generations to optimize garbage collection. Thread stacks are separate from the heap and contain method invocation frames, local variables, operand stacks, and other per-thread execution information.
+
+The Java program counter, or PC register, is associated with each thread. It identifies the current JVM instruction being executed by that thread. Because every thread executes independently, each thread has its own program counter. The JVM uses this information as part of its execution model for tracking the current instruction.
+
+A Java stack frame is created for each method invocation. A frame contains information required to execute the method, including local variables, an operand stack, and references to the runtime constant pool associated with the method's class. Each thread has its own stack, so stack frames are not directly shared between threads.
+
+The Java volatile keyword provides visibility guarantees for reads and writes of a variable across threads. A write to a volatile variable happens-before a subsequent read of that same variable by another thread under the Java Memory Model. Volatile does not make compound operations such as increment atomic because operations like count++ involve multiple steps.
+
+The Java synchronized keyword provides mutual exclusion and memory visibility. A synchronized method or block uses an object's monitor to ensure that only one thread at a time can execute the protected critical section for the same monitor. Exiting a synchronized block establishes a happens-before relationship with a subsequent acquisition of the same monitor.
+
+The Java happens-before relationship defines ordering and visibility guarantees in the Java Memory Model. If action A happens-before action B, then the effects of A are visible to B and A is ordered before B according to the memory model. Program order within a thread, monitor unlock followed by lock, volatile write followed by read, and thread start and join operations contribute to happens-before relationships.
+
+Java AtomicInteger and related atomic classes provide lock-free atomic operations for individual variables using low-level compare-and-set mechanisms. Atomic increment operations can safely update shared counters without using synchronized blocks. However, atomic variables do not automatically make larger multi-variable invariants thread-safe.
+
+Java ConcurrentHashMap provides a thread-safe map implementation designed for concurrent access. It supports concurrent reads and updates without requiring callers to synchronize the entire map. Compound operations should use appropriate atomic map methods such as compute, computeIfAbsent, merge, or putIfAbsent when the operation needs to be performed atomically with respect to the map.
+
+Java ExecutorService manages pools of worker threads and provides APIs for submitting tasks. Instead of manually creating a new thread for every task, an application can submit Runnable or Callable tasks to an executor. Thread pools control concurrency and can reduce the overhead associated with repeatedly creating and destroying threads.
+
+Java CompletableFuture represents the result of an asynchronous computation. CompletableFuture can compose asynchronous stages using operations such as thenApply, thenCompose, thenCombine, exceptionally, and handle. It is useful for building asynchronous workflows where multiple independent operations can execute concurrently and their results can later be combined.
+
+Java ReentrantLock provides explicit locking functionality with capabilities beyond intrinsic synchronized monitors. A ReentrantLock can support tryLock, interruptible lock acquisition, and optional fairness policies. Locks must be released reliably, normally by placing unlock inside a finally block after successful acquisition.
+
+A race condition occurs when the correctness of a program depends on the timing or interleaving of concurrent operations. Two threads can read the same shared state, compute different updates, and overwrite each other's changes. Synchronization, atomic operations, immutable data, message passing, or other concurrency control techniques can be used to prevent incorrect outcomes.
+
+A deadlock occurs when multiple threads wait indefinitely for resources held by one another. A classic example involves thread A holding lock X while waiting for lock Y, while thread B holds lock Y while waiting for lock X. Consistent lock ordering, timeout-based acquisition, reducing lock scope, and avoiding unnecessary nested locks are common techniques for reducing deadlock risk.
+
+PostgreSQL is a relational database management system that supports transactions, constraints, indexes, joins, window functions, common table expressions, JSON data, and advanced concurrency control. PostgreSQL uses MVCC, or Multi-Version Concurrency Control, to allow transactions to work with consistent snapshots while reducing blocking between readers and writers.
+
+A PostgreSQL transaction groups multiple database operations into an atomic unit of work. The transaction can commit all successful changes or roll back changes when an error occurs. Transaction isolation determines how concurrently executing transactions can observe each other's changes. Common isolation levels include Read Committed, Repeatable Read, and Serializable.
+
+PostgreSQL SELECT FOR UPDATE obtains row-level locks on selected rows. It is commonly used when an application must read a row and then update it while preventing competing transactions from modifying the same row concurrently. This pattern is useful for wallet balances, inventory quantities, job claims, and other state transitions where lost updates must be prevented.
+
+Database indexes improve lookup performance by allowing the database to locate matching rows without scanning the entire table in many cases. B-tree indexes are commonly used for equality and range predicates. Composite indexes contain multiple columns and can be useful when queries filter or sort using combinations of columns. Index design should be based on actual query patterns rather than adding indexes to every column.
+
+A database connection pool maintains a reusable collection of database connections. Instead of opening a new database connection for every request, an application borrows a connection from the pool, performs database operations, and returns the connection to the pool. HikariCP is a commonly used high-performance JDBC connection pool in Java applications.
+
+Distributed systems consist of multiple independent processes or machines that communicate over networks. Network delays, process crashes, partial failures, message duplication, retries, and inconsistent observations make distributed systems fundamentally different from single-process applications. A distributed system must explicitly reason about failure and coordination.
+
+An idempotent operation produces the same intended result when performed multiple times with the same request. Idempotency is important in distributed systems because clients and services often retry operations after timeouts or transient failures. APIs can implement idempotency keys so that repeated requests do not accidentally create duplicate business operations.
+
+A retry mechanism allows a client to repeat a failed operation. Retries can recover from transient network errors, temporary service unavailability, or throttling. However, uncontrolled retries can amplify load during an outage. Production systems commonly use exponential backoff, jitter, maximum retry attempts, and retry policies based on error type.
+
+A timeout limits how long a client waits for an operation. Timeouts are essential in distributed systems because a network request can become stuck due to failures or overloaded services. Without timeouts, threads, connections, and other resources can remain occupied indefinitely. Different timeout types can exist for connection establishment, request processing, and idle connections.
+
+A circuit breaker protects a service from repeatedly calling an unhealthy downstream dependency. When failures exceed configured thresholds, the circuit can enter an open state and reject calls without contacting the dependency. After a recovery period, the circuit can enter a half-open state and allow limited test requests before deciding whether to close or reopen.
+
+A load balancer distributes network traffic across multiple service instances. Load balancing improves availability and can increase throughput by distributing requests across healthy instances. Load balancers commonly perform health checks and stop routing traffic to instances that fail health requirements.
+
+A reverse proxy receives client requests and forwards them to backend services. Reverse proxies can provide TLS termination, routing, load balancing, authentication integration, caching, compression, and request filtering. Nginx, Envoy, and cloud-managed load balancing systems can operate as reverse proxies depending on the architecture.
+
+A REST API exposes resources and operations over HTTP. Common HTTP methods include GET for retrieval, POST for creating or triggering operations, PUT for replacing a resource, PATCH for partial modification, and DELETE for removal. Proper HTTP status codes communicate request outcomes such as success, client errors, authorization failures, not-found resources, and server failures.
+
+Retrieval-Augmented Generation, or RAG, combines information retrieval with language model generation. A RAG pipeline typically receives a user query, converts the query into an embedding, retrieves relevant documents from a vector or hybrid search system, and provides selected context to a language model. RAG can reduce reliance on information stored inside model parameters and can provide source-specific context.
+
+A bi-encoder retrieval model independently converts a query and documents into vector embeddings. The vectors can be compared using cosine similarity, dot product, or another distance metric. Because document embeddings can be generated ahead of time, bi-encoder retrieval can efficiently search large collections using vector indexes. The tradeoff is that independent encoding may miss some detailed query-document interactions.
+
+Cosine similarity measures the cosine of the angle between two vectors. For non-zero vectors, a value near one indicates similar direction, a value near zero indicates orthogonality, and a value near negative one indicates opposite direction. In embedding retrieval, cosine similarity is commonly used to rank documents according to semantic similarity to a query.
+
+A vector embedding is a numerical representation of text or another object in a continuous vector space. Semantically related inputs can produce vectors that are closer together according to an appropriate similarity metric. Embeddings are used for semantic search, clustering, recommendation, classification, deduplication, and retrieval-augmented generation.
+
+A vector database stores and searches high-dimensional embedding vectors. Vector search systems can use indexes such as HNSW or inverted file structures to efficiently find approximate nearest neighbors. PostgreSQL with the pgvector extension can store embeddings alongside relational application data and perform vector similarity searches using supported vector indexes.
+
+A cross-encoder evaluates a query and document together rather than embedding them independently. The query and candidate document are provided jointly to the model, allowing deeper token-level interaction. Cross-encoders are generally more computationally expensive than bi-encoders, so a common retrieval architecture uses a fast bi-encoder to retrieve a candidate set and a cross-encoder to rerank those candidates.
+
+A typical enterprise RAG retrieval pipeline may contain query preprocessing, metadata filtering, lexical retrieval, dense vector retrieval, reciprocal rank fusion, deduplication, reranking, maximum marginal relevance, score thresholds, context selection, and an abstention mechanism. Each stage can improve retrieval quality but also introduces latency and operational complexity.
+
+Reciprocal Rank Fusion combines rankings produced by different retrieval systems. For example, a system can combine BM25 lexical search with dense vector retrieval. RRF assigns higher contribution to documents appearing near the top of each ranking and combines the contributions across retrieval methods. This allows lexical and semantic retrieval signals to complement each other.
+
+Maximum Marginal Relevance, or MMR, balances relevance and diversity when selecting documents. Instead of selecting only the most similar documents, MMR penalizes candidates that are highly similar to documents already selected. This can reduce redundant context in RAG systems where several retrieved chunks contain nearly identical information.
+
+RAG chunking determines how source documents are divided into retrievable pieces. Very small chunks may lose necessary context, while very large chunks can introduce irrelevant information and reduce retrieval precision. Chunking strategies can use fixed token sizes, recursive splitting, document structure, headings, paragraphs, semantic boundaries, or domain-specific rules.
+
+A RAG reranker takes an initial candidate set and assigns a more accurate relevance score to each candidate. A common architecture first retrieves dozens of candidates using a fast embedding model and then reranks those candidates using a cross-encoder or language-model-based reranker. Only the highest-quality candidates are passed to the generation model.
+
+RAG evaluation should measure retrieval quality separately from generation quality. Retrieval metrics can include Recall@K, Precision@K, Mean Reciprocal Rank, and normalized Discounted Cumulative Gain. A retrieval system should be evaluated using a labeled dataset or representative query set rather than relying only on subjective inspection of a few examples.
+
+Semantic search retrieves information based on meaning rather than requiring exact keyword matches. Dense embeddings allow queries and documents containing different words but related concepts to be represented near each other in vector space. Hybrid retrieval combines semantic search with lexical techniques when exact identifiers, names, error messages, or technical terminology are important.
+
+A production RAG system should monitor retrieval latency, embedding latency, vector database latency, reranking latency, generation latency, token usage, retrieval scores, retrieved document identifiers, and answer quality signals. Observability makes it possible to identify whether a poor answer originated from query understanding, retrieval, reranking, context construction, or generation.
