@@ -1,0 +1,30 @@
+Kafka is a distributed event streaming platform used to publish,
+store, and process streams of records.
+
+A Kafka producer is a client application that publishes records
+to Kafka topics. Producers decide which topic and partition should
+receive a record.
+
+A Kafka consumer is a client application that reads records from
+Kafka topics. Consumers fetch records from partitions and process them.
+
+A Kafka consumer group is a group of consumers that cooperate to
+consume records from a topic. Each partition is assigned to at most
+one consumer within a consumer group.
+
+A Kafka partition is an ordered sequence of records. Each record
+within a partition receives an offset that identifies its position.
+
+A Kafka offset represents the position of a record within a partition.
+Consumers use offsets to keep track of their progress while reading
+records.
+
+Kafka topics are logical categories used to organize records.
+Topics can be divided into multiple partitions for scalability.
+
+Kafka replication allows partitions to have multiple replicas.
+Replication provides fault tolerance when brokers fail.
+
+Kafka retention controls how long Kafka keeps records. Records can
+be retained based on time or size regardless of whether consumers
+have already read them.
