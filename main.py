@@ -4,7 +4,8 @@ from src.embedding import (
     create_embeddings,
 )
 
-from src.similarity import cosine_similarity
+from src.retrieval import retrieve
+from src.visualizer import visualize_embeddings
 
 
 DOCUMENT_PATH = "data/documents.txt"
@@ -26,17 +27,13 @@ def main():
         convert_to_numpy=True,
     )
 
-    results = []
-
-    for idx, embedding in enumerate(embeddings):
-        score = cosine_similarity(
-            query_embedding,
-            embedding,
-        )
-
-        results.append((score, documents[idx]))
-
-    results.sort(reverse=True)
+    results = retrieve(
+        query=QUERY,
+        model=model,
+        documents=documents,
+        embeddings=embeddings,
+        top_k=5,
+    )
 
     print("=" * 80)
     print("QUERY")
@@ -44,14 +41,28 @@ def main():
     print(QUERY)
 
     print("\n" + "=" * 80)
-    print("RESULTS")
+    print(f"TOP {len(results)} RESULTS")
     print("=" * 80)
 
-    for rank, (score, document) in enumerate(results, start=1):
-        print(f"\nRank: {rank}")
-        print(f"Similarity: {score:.4f}")
+    for rank, result in enumerate(results, start=1):
+        print(f"\nRank       : {rank}")
+        print(f"Document   : {result['index']}")
+        print(f"Similarity : {result['score']:.4f}")
         print("-" * 80)
-        print(document)
+        print(result["document"])
+
+    # Visualize document embeddings + query embedding
+    labels = [
+        f"Doc {index}"
+        for index in range(len(documents))
+    ]
+
+    visualize_embeddings(
+        embeddings=embeddings,
+        labels=labels,
+        query_embedding=query_embedding,
+        query_label="Query",
+    )
 
 
 if __name__ == "__main__":
