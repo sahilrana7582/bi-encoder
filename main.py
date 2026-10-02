@@ -4,14 +4,16 @@ from src.embedding import (
     create_embeddings,
 )
 from src.llm import (
-    create_llm_model, get_settings
+    create_llm_model, get_settings, format_context
 )
 from src.retrieval import retrieve
 from src.visualizer import visualize_embeddings
+from src.prompt import prompt
 
 
 DOCUMENT_PATH = "data/documents.txt"
-QUERY = "How does a Kafka consumer keep track of its position?"
+# QUERY = "How does Kubernetes maintain the used defined number of application instances while allowing changes to be introduced without replacing everything at once?"
+QUERY = "What component is responsible for keeping application instances aligned with the intended state and handling changes to that state?"
 
 
 def main():
@@ -55,18 +57,31 @@ def main():
         print("-" * 80)
         print(result["document"])
 
-    # Visualize document embeddings + query embedding
-    labels = [
-        f"Doc {index}"
-        for index in range(len(documents))
-    ]
+    llm_context = format_context(results=results)
+    formatted_prompt = prompt.invoke({
+        "query": QUERY,
+        "context": llm_context
+    })
 
-    visualize_embeddings(
-        embeddings=embeddings,
-        labels=labels,
-        query_embedding=query_embedding,
-        query_label="Query",
-    )
+    response = llm_model.invoke(formatted_prompt)
+    print(response)
+    print("="*80)
+    print("="*80)
+    print(response.content)
+
+
+    # Visualize document embeddings + query embedding
+    # labels = [
+    #     f"Doc {index}"
+    #     for index in range(len(documents))
+    # ]
+
+    # visualize_embeddings(
+    #     embeddings=embeddings,
+    #     labels=labels,
+    #     query_embedding=query_embedding,
+    #     query_label="Query",
+    # )
 
 
 if __name__ == "__main__":

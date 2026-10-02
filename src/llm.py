@@ -21,6 +21,20 @@ def get_settings() -> Settings:
     return Settings()
 
 
+def format_context(results):
+    context_parts = []
+
+    for rank, result in enumerate(results, start=1):
+        context_parts.append(
+            f"""
+                [Document {rank}]
+                {result["document"]}
+                """
+        )
+
+    return "\n".join(context_parts)
+
+
 def create_llm_model(settings: Settings) -> ChatOpenAI:
     model = ChatOpenAI(
         model=settings.llm_model,
